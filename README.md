@@ -1,8 +1,10 @@
 # ImageSpliter Macro: Processing with Better UI
 
-This is an ImageJ macro (`Processing with better UI_fixed.ijm`) for batch processing and splitting multi-dimensional microscopy image files (such as Leica `.lif`, Zeiss `.zvi`, and `.tif`). The macro is designed to streamline the workflow for researchers working with multi-channel, multi-series image data.
+This is an ImageJ macro (`Processing with better UI_fixed.ijm`) for batch processing and splitting multi-dimensional microscopy image files, such as Leica `.lif`, Zeiss `.zvi`, and `.tif`. The macro is designed to streamline workflows for researchers working with multi-channel, multi-series image data.
 
-The orignal purpose is to deal with compact Leica Project file (.lif),and save each image into a separted .tif file for later imaging analysis usage. It would avoild managing huge .lif file. It should work for other image format that compatabile with Bio-Formats plugin. ONly .zvi and .tif file have been tested in my Mac laptop 
+The original purpose of this macro is to process compact Leica Project files (`.lif`) and save each image as a separate `.tif` file for downstream analysis, avoiding the need to manage large `.lif` files. It should also work with other image formats compatible with the Bio-Formats plugin. This macro has been tested with `.zvi` and `.tif` files on a MacBook Pro (M4 Pro, macOS Sequoia).
+
+This project was inspired by discussions on image.sc, and the final script was optimized with the help of Cursor.
 
 ## Main Features
 - **Batch Processing:** Process all compatible files in a selected directory (and subdirectories).
@@ -13,8 +15,7 @@ The orignal purpose is to deal with compact Leica Project file (.lif),and save e
 - **Handles Single-Channel and Multi-Channel Images:** 
 
 ## Requirements
-- [Fiji (ImageJ)](https://fiji.sc/) with Bio-Formats plugin installed (Fiji includes this by default).
-
+- [Fiji (ImageJ)](https://fiji.sc/) with the Bio-Formats plugin installed (included by default in Fiji).
 
 ## Installation
 1. Download or copy the macro file `Processing with better UI_fixed.ijm` into your Fiji/ImageJ macros directory or any folder of your choice.
