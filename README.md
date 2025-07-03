@@ -1,6 +1,8 @@
 # ImageSpliter Macro: Processing with Better UI
 
-This project provides an ImageJ macro (`Processing with better UI_fixed.ijm`) for batch processing and splitting multi-dimensional microscopy image files (such as Leica `.lif`, Zeiss `.zvi`, and `.tif`). The macro is designed to streamline the workflow for researchers working with multi-channel, multi-series image data.
+This is an ImageJ macro (`Processing with better UI_fixed.ijm`) for batch processing and splitting multi-dimensional microscopy image files (such as Leica `.lif`, Zeiss `.zvi`, and `.tif`). The macro is designed to streamline the workflow for researchers working with multi-channel, multi-series image data.
+
+The orignal purpose is to deal with compact Leica Project file (.lif),and save each image into a separted .tif file for later imaging analysis usage. It would avoild managing huge .lif file. It should work for other image format that compatabile with Bio-Formats plugin. ONly .zvi and .tif file have been tested in my Mac laptop 
 
 ## Main Features
 - **Batch Processing:** Process all compatible files in a selected directory (and subdirectories).
