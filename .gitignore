@@ -1,0 +1,63 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# ImageJ/Fiji specific
+# (add more if you have custom output folders)
+
+# Python/IDE/Editor
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.idea/
+.vscode/
+
+# Node/npm (if any JS tooling)
+node_modules/
+
+# Logs
+*.log
+
+# Output folders (customize as needed)
+/output/
+/results/
+/exports/
+
+# Ignore OneDrive/Cloud sync files
+*.one
+*.lnk
+
+# Ignore any credentials or config
+.env
+.env.*
+
+# Ignore test data (customize as needed)
+/test_data/
+/tests/output/
+
+# Ignore Fiji_Macro/ if you only want to track your own macros
+# Fiji_Macro/ 
