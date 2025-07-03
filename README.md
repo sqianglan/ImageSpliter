@@ -8,13 +8,11 @@ This project provides an ImageJ macro (`Processing with better UI_fixed.ijm`) fo
 - **Channel Coloring:** Assign custom colors to channels (Gray, Cyan, Magenta, Yellow) for merged output.
 - **Scale Bar Addition:** Optionally add a scale bar to a specified channel.
 - **8-bit Conversion:** Convert images to 8-bit for compatibility and reduced file size.
-- **Flexible Output:** Save results in the input folder or a user-specified output directory.
-- **User-Friendly Dialogs:** Step-by-step dialogs for setting parameters and options.
-- **Handles Single-Channel and Multi-Channel Images:** Robust against single-channel input.
+- **Handles Single-Channel and Multi-Channel Images:** 
 
 ## Requirements
 - [Fiji (ImageJ)](https://fiji.sc/) with Bio-Formats plugin installed (Fiji includes this by default).
-- macOS, Windows, or Linux.
+
 
 ## Installation
 1. Download or copy the macro file `Processing with better UI_fixed.ijm` into your Fiji/ImageJ macros directory or any folder of your choice.
