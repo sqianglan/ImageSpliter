@@ -10,6 +10,7 @@
 doBatch = true;  // true = do batch analysis in the background
 addScalebar = false; 
 transform_to_8bit = true; 
+autoWhiteBalanceSingle = false; // apply auto white balance only for single-channel images
 outAsIn = true;
 grayCh = 1;    // channel for Gray color
 cyanCh = 2;  // channel for Cyan color
@@ -39,6 +40,8 @@ while (!valid){
     Dialog.addString("File Suffix:", ".lif"); // Default suffix
     Dialog.addMessage("");
     Dialog.addCheckbox("Change to 8 bit image", transform_to_8bit);
+    Dialog.addToSameRow();
+    Dialog.addCheckbox("Auto white balance (single-channel)", autoWhiteBalanceSingle);
     Dialog.addMessage("");
     Dialog.addMessage("Color for each channel (start with 1, and type 0 if the channel does not exist or do not want to change default color) \n sometimes the image will lose original color given during imaging if not re-colored.");
     Dialog.addNumber("Gray channel", grayCh);
@@ -63,6 +66,7 @@ while (!valid){
     outAsIn = Dialog.getCheckbox();
     fileExtension = Dialog.getString();
     transform_to_8bit = Dialog.getCheckbox();
+    autoWhiteBalanceSingle = Dialog.getCheckbox();
     grayCh = Dialog.getNumber();
     cyanCh = Dialog.getNumber();
     megaCh = Dialog.getNumber();
@@ -158,6 +162,7 @@ function processBioFormatFiles(currentDirectory) {
                 outputBaseName = outputFolder + File.separator + currentImageName;
                 // transform 12 bits to 8 bits
                 if (transform_to_8bit){depth_to_8bit();}
+                apply_single_channel_auto_white_balance();
                 // color the image with dedicated color code
                 color_channels(grayCh, yellowCh, cyanCh, megaCh);
                 saveAs("Tiff", outputBaseName + ".tif");
@@ -207,10 +212,47 @@ function depth_to_8bit(){
         run("Merge Channels...", cmd + "create ignore");
     } else {
         // For single channel, just ensure it's 8-bit if needed
-        if (bitDepth()!=8) {
-            run("8-bit");
-        }
+         getStatistics(area, mean, min, max, std, histogram);
+            if (bitDepth() == 16 && max <= 4095) {
+                setMinAndMax(0, 4095);
+                call("ij.ImagePlus.setDefault16bitRange", 12);
+                run("8-bit");
+            }
+            if (bitDepth()!=8) {
+                run("8-bit");
+            }
+             if(addScalebar == true){
+            run("Duplicate...", " ");
+            // Get the ID of the duplicated image BEFORE flattening
+            scalebarID = getImageID();
+            
+            run("Scale Bar...", "width=" + scaleLength + " height=12 font=42 color=White background=None location=[Lower Left] bold overlay");
+            run("Flatten");
+            outFile2 = outputBaseName + "_Ch" + scaleCh +"_scalebar.tif"; // fix channel index
+            saveAs("Tiff", outFile2);
+            close();
+            
+            selectImage(scalebarID); // Select back the duplicate
+            close();
+            
+            }
+            
+            
+            
     }
+}
+
+function apply_single_channel_auto_white_balance() {
+    if (!autoWhiteBalanceSingle) return;
+    getDimensions(width, height, channels, slices, frames);
+    if (channels == 1) {
+        auto_white_balance_single();
+    }
+}
+
+function auto_white_balance_single() {
+    // Stretch histogram to auto-balance contrast for single-channel images
+    run("Enhance Contrast", "saturated=0.35 normalize");
 }
 
 function timeStamp() {
@@ -231,13 +273,22 @@ function split_channel_save(outputBaseName) {
         file_name_channel = outputBaseName + "_Ch" + (channel+1) + ".tif"; // fix channel index
         saveAs("Tiff", file_name_channel);
         //add scale bar
-        if(channel == scaleCh-1){
+        //print(addScalebar);
+        if(channel == scaleCh-1 && addScalebar == true){
             run("Duplicate...", " ");
+            // Get the ID of the duplicated image BEFORE flattening
+            scalebarID = getImageID();
+            
             run("Scale Bar...", "width=" + scaleLength + " height=12 font=42 color=White background=None location=[Lower Left] bold overlay");
             run("Flatten");
             outFile2 = outputBaseName + "_Ch" + scaleCh +"_scalebar.tif"; // fix channel index
             saveAs("Tiff", outFile2);
-            close();}
+            close();
+            
+            selectImage(scalebarID); // Select back the duplicate
+            close();
+            
+            }
     }
     merge_channel(outputBaseName);
 }
@@ -266,10 +317,10 @@ function merge_channel(outputBaseName){
             validChannel += "-" + channelValues[i];
         }
     }
-    print(cmd);
-    print(validChannel);
+    //print(cmd);
+    //print(validChannel);
     run("Merge Channels...", cmd + "create ignore");
-    run("RGB Color");
+    //run("RGB Color");
     saveAs("Tiff", outputBaseName + "_" + validChannel + "_merged.tif");
     close();
 }
@@ -302,4 +353,3 @@ function hasfiles(dir, fileExtension) {
     return false;
 }
 
-</rewritten_file> 
