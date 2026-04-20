@@ -11,6 +11,8 @@ doBatch = true;  // true = do batch analysis in the background
 addScalebar = false; 
 transform_to_8bit = true; 
 autoWhiteBalanceSingle = false; // apply auto white balance only for single-channel images
+treatRGBasSingle = false; // treat 3-channel RGB camera image as one brightfield image
+rgbSingleOutputGray = true; // if true, save treated RGB-as-single output as gray
 outAsIn = true;
 grayCh = 1;    // channel for Gray color
 cyanCh = 2;  // channel for Cyan color
@@ -19,6 +21,7 @@ yellowCh = 4;  // channel for yellow color
 scaleCh = 1; // channel for scale bar
 scaleLength = 50; // scale bar length
 channelSplit = false; // default do not split channel
+selectedImageMode = "Multi-channel image";
 
 // --- start Macro ---
 
@@ -41,24 +44,15 @@ while (!valid){
     Dialog.addMessage("");
     Dialog.addCheckbox("Change to 8 bit image", transform_to_8bit);
     Dialog.addToSameRow();
-    Dialog.addCheckbox("Auto white balance (single-channel)", autoWhiteBalanceSingle);
-    Dialog.addMessage("");
-    Dialog.addMessage("Color for each channel (start with 1, and type 0 if the channel does not exist or do not want to change default color) \n sometimes the image will lose original color given during imaging if not re-colored.");
-    Dialog.addNumber("Gray channel", grayCh);
-    Dialog.addToSameRow();
-    Dialog.addNumber("Cyan channel", cyanCh);
-
-    Dialog.addNumber("Magenta channel", megaCh);
-    Dialog.addToSameRow();
-    Dialog.addNumber("Yellow channel", yellowCh);
-    Dialog.addMessage("");
-    Dialog.addCheckbox("Split Channels?", channelSplit);
-    Dialog.addToSameRow();
     Dialog.addCheckbox("Add Scale bar?", addScalebar);
     Dialog.addToSameRow();
     Dialog.addCheckbox("Batch Silent Mode?", doBatch);
     Dialog.addToSameRow();
     Dialog.addMessage("(With silent mode, no image windows will pop out)");
+    Dialog.addMessage("");
+    modeItems = newArray("Single-channel image", "Multi-channel image");
+    Dialog.addChoice("Image mode", modeItems, selectedImageMode);
+    Dialog.addMessage("Mode-specific settings are shown in the next step.");
     Dialog.show();
 
 //get custom input values
@@ -66,14 +60,44 @@ while (!valid){
     outAsIn = Dialog.getCheckbox();
     fileExtension = Dialog.getString();
     transform_to_8bit = Dialog.getCheckbox();
-    autoWhiteBalanceSingle = Dialog.getCheckbox();
-    grayCh = Dialog.getNumber();
-    cyanCh = Dialog.getNumber();
-    megaCh = Dialog.getNumber();
-    yellowCh = Dialog.getNumber();
-    channelSplit = Dialog.getCheckbox();
     addScalebar = Dialog.getCheckbox();
     doBatch = Dialog.getCheckbox();
+    selectedImageMode = Dialog.getChoice();
+
+    if (selectedImageMode == "Single-channel image") {
+        Dialog.create("Single-channel / Brightfield Settings");
+        Dialog.addMessage("Settings for true single-channel images and RGB camera brightfield images.");
+        Dialog.addCheckbox("Treat RGB brightfield as single-channel", treatRGBasSingle);
+        Dialog.addToSameRow();
+        Dialog.addCheckbox("RGB single output as Gray", rgbSingleOutputGray);
+        Dialog.addMessage("");
+        Dialog.addCheckbox("Auto white balance (single-channel only)", autoWhiteBalanceSingle);
+        Dialog.show();
+
+        treatRGBasSingle = Dialog.getCheckbox();
+        rgbSingleOutputGray = Dialog.getCheckbox();
+        autoWhiteBalanceSingle = Dialog.getCheckbox();
+        channelSplit = false;
+    } else {
+        Dialog.create("Multi-channel Settings");
+        Dialog.addMessage("These options apply to normal real multi-channel images.");
+        Dialog.addMessage("Color for each channel (start with 1, and type 0 if the channel does not exist or you do not want to change default color).\nSometimes the image will lose original color given during imaging if not re-colored.");
+        Dialog.addNumber("Gray channel", grayCh);
+        Dialog.addToSameRow();
+        Dialog.addNumber("Cyan channel", cyanCh);
+        Dialog.addNumber("Magenta channel", megaCh);
+        Dialog.addToSameRow();
+        Dialog.addNumber("Yellow channel", yellowCh);
+        Dialog.addMessage("");
+        Dialog.addCheckbox("Split Channels?", channelSplit);
+        Dialog.show();
+
+        grayCh = Dialog.getNumber();
+        cyanCh = Dialog.getNumber();
+        megaCh = Dialog.getNumber();
+        yellowCh = Dialog.getNumber();
+        channelSplit = Dialog.getCheckbox();
+    }
     
 // Check if the inputDir is valid
     // Trim trailing separator (if any) for validation
@@ -160,6 +184,12 @@ function processBioFormatFiles(currentDirectory) {
                 currentImageName = replace(currentImageName, "-", "_");
                 currentImageName = replace(currentImageName, "/", "_stitching_");
                 outputBaseName = outputFolder + File.separator + currentImageName;
+
+                if (process_rgb_as_single(outputBaseName)) {
+                    close("*");
+                    continue;
+                }
+
                 // transform 12 bits to 8 bits
                 if (transform_to_8bit){depth_to_8bit();}
                 apply_single_channel_auto_white_balance();
@@ -248,6 +278,44 @@ function apply_single_channel_auto_white_balance() {
     if (channels == 1) {
         auto_white_balance_single();
     }
+}
+
+function process_rgb_as_single(outputBaseName) {
+    if (!treatRGBasSingle) return false;
+    getDimensions(width, height, channels, slices, frames);
+    if (channels != 3) return false;
+
+    if (!rgbSingleOutputGray) {
+        // Keep original RGB appearance and skip single-channel auto white balance
+        saveAs("Tiff", outputBaseName + ".tif");
+        return true;
+    }
+
+    run("Split Channels");
+    list = getList("image.titles");
+    if (lengthOf(list) < 1) return false;
+
+    // Keep first channel for treated single-channel output
+    selectWindow(list[0]);
+    if (rgbSingleOutputGray) {
+        run("Grays");
+        if (transform_to_8bit && bitDepth()!=8) {
+            run("8-bit");
+        }
+        if (autoWhiteBalanceSingle) {
+            auto_white_balance_single();
+        }
+    }
+    saveAs("Tiff", outputBaseName + ".tif");
+
+    // Close any remaining split channel windows from this image
+    for (i = 1; i < list.length; i++) {
+        if (isOpen(list[i])) {
+            selectWindow(list[i]);
+            close();
+        }
+    }
+    return true;
 }
 
 function auto_white_balance_single() {
