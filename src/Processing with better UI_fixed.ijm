@@ -186,6 +186,14 @@ function processBioFormatFiles(currentDirectory) {
                 name = getTitle();
                 currentImageName = replace(name, fileExtension, "");
                 currentImageName = replace(currentImageName, "-", "_");
+                currentImageName = replace(currentImageName, "\\", "_");
+                currentImageName = replace(currentImageName, ":", "_");
+                currentImageName = replace(currentImageName, "*", "_");
+                currentImageName = replace(currentImageName, "?", "_");
+                currentImageName = replace(currentImageName, "\"", "_");
+                currentImageName = replace(currentImageName, "<", "_");
+                currentImageName = replace(currentImageName, ">", "_");
+                currentImageName = replace(currentImageName, "|", "_");
                 currentImageName = replace(currentImageName, "/", "_stitching_");
                 outputBaseName = outputFolder + File.separator + currentImageName;
 
@@ -411,6 +419,10 @@ function timeStamp() {
 
 function split_channel_save(outputBaseName) {
     //Split channel to save each channel separated
+    getDimensions(width, height, channels, slices, frames);
+    if (channels < 2) {
+        return;
+    }
     run("Split Channels");
     list = getList("image.titles"); //get image list
     for (channel = 0; channel < list.length; channel++) {

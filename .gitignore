@@ -28,6 +28,19 @@
 # ImageJ/Fiji specific
 # (add more if you have custom output folders)
 
+# test files
+*.tif
+*.tiff
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.czi
+*.lif
+*.vsi
+
+
 # Python/IDE/Editor
 __pycache__/
 *.pyc
