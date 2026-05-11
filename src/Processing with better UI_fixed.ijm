@@ -11,8 +11,7 @@ doBatch = true;  // true = do batch analysis in the background
 addScalebar = false; 
 transform_to_8bit = true; 
 autoWhiteBalanceSingle = false; // apply auto white balance only for single-channel images
-treatRGBasSingle = false; // treat 3-channel RGB camera image as one brightfield image
-rgbSingleOutputGray = true; // if true, save treated RGB-as-single output as gray
+singleChannelExportGray = false; // export final single-channel output as grayscale
 outAsIn = true;
 grayCh = 1;    // channel for Gray color
 cyanCh = 2;  // channel for Cyan color
@@ -22,6 +21,7 @@ scaleCh = 1; // channel for scale bar
 scaleLength = 50; // scale bar length
 channelSplit = false; // default do not split channel
 selectedImageMode = "Multi-channel image";
+previewMultiChannel = false;
 
 // --- start Macro ---
 
@@ -66,17 +66,14 @@ while (!valid){
 
     if (selectedImageMode == "Single-channel image") {
         Dialog.create("Single-channel / Brightfield Settings");
-        Dialog.addMessage("Settings for true single-channel images and RGB camera brightfield images.");
-        Dialog.addCheckbox("Treat RGB brightfield as single-channel", treatRGBasSingle);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("RGB single output as Gray", rgbSingleOutputGray);
+        Dialog.addMessage("Single-channel mode expects an RGB image and applies one explicit export path to all selected files.");
+        Dialog.addCheckbox("Auto white balance", autoWhiteBalanceSingle);
         Dialog.addMessage("");
-        Dialog.addCheckbox("Auto white balance (single-channel only)", autoWhiteBalanceSingle);
+        Dialog.addCheckbox("Export grayscale final image", singleChannelExportGray);
         Dialog.show();
 
-        treatRGBasSingle = Dialog.getCheckbox();
-        rgbSingleOutputGray = Dialog.getCheckbox();
         autoWhiteBalanceSingle = Dialog.getCheckbox();
+        singleChannelExportGray = Dialog.getCheckbox();
         channelSplit = false;
     } else {
         Dialog.create("Multi-channel Settings");
@@ -90,6 +87,8 @@ while (!valid){
         Dialog.addNumber("Yellow channel", yellowCh);
         Dialog.addMessage("");
         Dialog.addCheckbox("Split Channels?", channelSplit);
+        Dialog.addToSameRow();
+        Dialog.addCheckbox("Preview color mapping before processing", previewMultiChannel);
         Dialog.show();
 
         grayCh = Dialog.getNumber();
@@ -97,6 +96,7 @@ while (!valid){
         megaCh = Dialog.getNumber();
         yellowCh = Dialog.getNumber();
         channelSplit = Dialog.getCheckbox();
+        previewMultiChannel = Dialog.getCheckbox();
     }
     
 // Check if the inputDir is valid
@@ -145,6 +145,10 @@ if (channelSplit) {
     mergedYellowCh = Dialog.getNumber();
 }
 
+if (selectedImageMode == "Multi-channel image" && previewMultiChannel) {
+    preview_multi_channel_mapping(inputDir);
+}
+
 if (doBatch) {setBatchMode(true);}
 
 run("Bio-Formats Macro Extensions");
@@ -185,7 +189,8 @@ function processBioFormatFiles(currentDirectory) {
                 currentImageName = replace(currentImageName, "/", "_stitching_");
                 outputBaseName = outputFolder + File.separator + currentImageName;
 
-                if (process_rgb_as_single(outputBaseName)) {
+                if (selectedImageMode == "Single-channel image") {
+                    process_single_channel_output(outputBaseName);
                     close("*");
                     continue;
                 }
@@ -280,46 +285,119 @@ function apply_single_channel_auto_white_balance() {
     }
 }
 
-function process_rgb_as_single(outputBaseName) {
-    if (!treatRGBasSingle) return false;
-    getDimensions(width, height, channels, slices, frames);
-    if (channels != 3) return false;
-
-    if (!rgbSingleOutputGray) {
-        // Keep original RGB appearance and skip single-channel auto white balance
-        saveAs("Tiff", outputBaseName + ".tif");
-        return true;
+function preview_multi_channel_mapping(inputDir) {
+    previewFile = find_first_matching_file(inputDir);
+    if (previewFile == "") {
+        showMessage("Preview", "No matching input file found for preview.");
+        return;
     }
 
+    run("Bio-Formats Importer", "open=[" + previewFile + "] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_1");
+    sourceTitle = getTitle();
+    getDimensions(width, height, channels, slices, frames);
+    if (channels < 2) {
+        showMessage("Preview", "Preview image has only one channel. Multi-channel preview skipped.");
+        close("*");
+        return;
+    }
+
+    // Keep one preview window with selected channel LUTs so user can visually confirm mapping.
+    run("Duplicate...", "title=Color_Preview");
+    selectWindow("Color_Preview");
+    color_channels(grayCh, yellowCh, cyanCh, megaCh);
+
+    selectWindow(sourceTitle);
     run("Split Channels");
     list = getList("image.titles");
-    if (lengthOf(list) < 1) return false;
 
-    // Keep first channel for treated single-channel output
-    selectWindow(list[0]);
-    if (rgbSingleOutputGray) {
-        run("Grays");
-        if (transform_to_8bit && bitDepth()!=8) {
-            run("8-bit");
+    previewText = "Preview file: " + previewFile + "\n";
+    previewText += "Series: 1\n";
+    previewText += "Size: " + width + " x " + height + "\n";
+    previewText += "Z slices: " + slices + ", Frames: " + frames + "\n";
+    previewText += "Detected channels: " + lengthOf(list) + "\n\n";
+    previewText += "Channel statistics (from metadata windows):\n";
+
+    for (i = 0; i < list.length; i++) {
+        selectWindow(list[i]);
+        getStatistics(area, mean, min, max, std, histogram);
+        previewText += "Ch" + (i+1) + " | " + list[i] + " | min=" + d2s(min, 1) + ", max=" + d2s(max, 1) + ", mean=" + d2s(mean, 1) + "\n";
+    }
+
+    previewText += "\nColor mapping selection:\n";
+    previewText += "Gray=" + grayCh + ", Cyan=" + cyanCh + ", Magenta=" + megaCh + ", Yellow=" + yellowCh + "\n\n";
+    previewText += "Review the 'Color_Preview' window, then click OK to continue.";
+
+    showMessage("Multi-channel preview", previewText);
+    waitForUser("Confirm preview", "Check color alignment in 'Color_Preview', then click OK to continue.");
+    close("*");
+}
+
+function find_first_matching_file(currentDirectory) {
+    localList = getFileList(currentDirectory);
+    for (j = 0; j < localList.length; j++) {
+        if (endsWith(localList[j], fileExtension)) {
+            return currentDirectory + localList[j];
         }
-        if (autoWhiteBalanceSingle) {
-            auto_white_balance_single();
+        if (endsWith(localList[j], "/")) {
+            nestedPath = find_first_matching_file(currentDirectory + localList[j]);
+            if (nestedPath != "") {
+                return nestedPath;
+            }
         }
+    }
+    return "";
+}
+
+function process_single_channel_output(outputBaseName) {
+    getDimensions(width, height, channels, slices, frames);
+
+    if (singleChannelExportGray) {
+        save_single_channel_grayscale_output(outputBaseName);
+        return;
+    }
+
+    if (autoWhiteBalanceSingle) {
+        auto_white_balance_rgb();
+    }
+
+    // Default single-channel export: save only the final RGB result as the main TIFF.
+    tempRgbSource = outputBaseName + "__rgb_source__.tif";
+    saveAs("Tiff", tempRgbSource);
+    save_single_channel_rgb_output(outputBaseName, tempRgbSource);
+    deletedTempRgbSource = File.delete(tempRgbSource);
+}
+
+function save_single_channel_grayscale_output(outputBaseName) {
+    run("Duplicate...", "title=Single_Channel_Gray_Output");
+    selectWindow("Single_Channel_Gray_Output");
+    run("RGB Color");
+    if (bitDepth()!=8) {
+        run("8-bit");
+    }
+    run("Grays");
+    if (autoWhiteBalanceSingle) {
+        auto_white_balance_single();
     }
     saveAs("Tiff", outputBaseName + ".tif");
+    close();
+}
 
-    // Close any remaining split channel windows from this image
-    for (i = 1; i < list.length; i++) {
-        if (isOpen(list[i])) {
-            selectWindow(list[i]);
-            close();
-        }
-    }
-    return true;
+function save_single_channel_rgb_output(outputBaseName, sourcePath) {
+    open(sourcePath);
+    rgbSourceTitle = getTitle();
+    selectWindow(rgbSourceTitle);
+    run("Stack to RGB");
+    saveAs("Tiff", outputBaseName + ".tif");
+    close();
 }
 
 function auto_white_balance_single() {
     // Stretch histogram to auto-balance contrast for single-channel images
+    run("Enhance Contrast", "saturated=0.35 normalize");
+}
+
+function auto_white_balance_rgb() {
+    // Apply contrast normalization to the displayed RGB/composite image before rendered export.
     run("Enhance Contrast", "saturated=0.35 normalize");
 }
 
