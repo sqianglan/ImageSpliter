@@ -22,7 +22,6 @@ mergeIncludeYellow = true;
 scaleCh = 1;
 scaleLength = 50;
 channelSplit = false;
-previewMultiChannel = false;
 defaultZ = 1;
 zSplitChannels = false;
 zConvertSplitTo8Bit = false;
@@ -98,15 +97,12 @@ function run_batch_export(workflow) {
             Dialog.addNumber("Yellow channel", yellowCh);
             Dialog.addMessage("");
             Dialog.addCheckbox("Split Channels?", channelSplit);
-            Dialog.addToSameRow();
-            Dialog.addCheckbox("Preview color mapping before processing", previewMultiChannel);
             Dialog.show();
             grayCh = Dialog.getNumber();
             cyanCh = Dialog.getNumber();
             megaCh = Dialog.getNumber();
             yellowCh = Dialog.getNumber();
             channelSplit = Dialog.getCheckbox();
-            previewMultiChannel = Dialog.getCheckbox();
         }
 
         if (hasfiles(inputDir, fileExtension)) {
@@ -133,10 +129,6 @@ function run_batch_export(workflow) {
         Dialog.show();
         scaleCh = Dialog.getNumber();
         scaleLength = Dialog.getNumber();
-    }
-
-    if (workflow == "Multichannel Image" && previewMultiChannel) {
-        preview_multi_channel_mapping(inputDir);
     }
 
     if (doBatch) setBatchMode(true);
@@ -567,7 +559,7 @@ function depth_to_8bit() {
             if (bitDepth() != 8) run("8-bit");
             cmd += "c" + (channel+1) + "=[" + list[channel] + "] ";
         }
-        run("Merge Channels...", cmd + "create ignore");
+        run("Merge Channels...", cmd + "create");
     } else {
         getStatistics(area, mean, min, max, std, histogram);
         if (bitDepth() == 16 && max <= 4095) {
@@ -588,43 +580,6 @@ function depth_to_8bit() {
             close();
         }
     }
-}
-
-function preview_multi_channel_mapping(inputDir) {
-    previewFile = find_first_matching_file(inputDir);
-    if (previewFile == "") {
-        showMessage("Preview", "No matching input file found for preview.");
-        return;
-    }
-    run("Bio-Formats Importer", "open=[" + previewFile + "] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_1");
-    sourceTitle = getTitle();
-    getDimensions(width, height, channels, slices, frames);
-    if (channels < 2) {
-        showMessage("Preview", "Preview image has only one channel. Multichannel preview skipped.");
-        close("*");
-        return;
-    }
-    run("Duplicate...", "title=Color_Preview");
-    selectWindow("Color_Preview");
-    apply_current_color_mapping();
-    selectWindow(sourceTitle);
-    run("Split Channels");
-    list = getList("image.titles");
-    previewText = "Preview file: " + previewFile + "\n";
-    previewText += "Series: 1\n";
-    previewText += "Size: " + width + " x " + height + "\n";
-    previewText += "Z slices: " + slices + ", Frames: " + frames + "\n";
-    previewText += "Detected channels: " + lengthOf(list) + "\n\n";
-    previewText += "Channel statistics:\n";
-    for (i = 0; i < list.length; i++) {
-        selectWindow(list[i]);
-        getStatistics(area, mean, min, max, std, histogram);
-        previewText += "Ch" + (i+1) + " | " + list[i] + " | min=" + d2s(min, 1) + ", max=" + d2s(max, 1) + ", mean=" + d2s(mean, 1) + "\n";
-    }
-    previewText += "\nColor mapping: Gray=" + grayCh + ", Cyan=" + cyanCh + ", Magenta=" + megaCh + ", Yellow=" + yellowCh;
-    showMessage("Multichannel Preview", previewText);
-    waitForUser("Confirm preview", "Check 'Color_Preview', then click OK to continue.");
-    close("*");
 }
 
 function split_channel_save(outputBaseName) {
@@ -699,7 +654,7 @@ function merge_channel(outputBaseName) {
         print("No split-channel windows available for merged export in image " + currentImageName);
         return;
     }
-    run("Merge Channels...", cmd + "create ignore");
+    run("Merge Channels...", cmd + "create");
     saveAs("Tiff", outputBaseName + "_" + validChannel + "_merged.tif");
     close();
 }
