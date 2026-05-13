@@ -32,36 +32,6 @@ currentImageName = "";
 outputFolder = "";
 imageDir = "";
 
-function load_review_settings() {
-    settingsPath = getDir("temp") + "IES_review_settings.txt";
-    if (!File.exists(settingsPath)) return;
-    content = File.openAsString(settingsPath);
-    lines = split(content, "\n");
-    if (lengthOf(lines) < 13) return;
-    grayCh              = parseFloat(lines[0]);
-    cyanCh              = parseFloat(lines[1]);
-    megaCh              = parseFloat(lines[2]);
-    yellowCh            = parseFloat(lines[3]);
-    mergeIncludeGray    = parseFloat(lines[4]);
-    mergeIncludeCyan    = parseFloat(lines[5]);
-    mergeIncludeMega    = parseFloat(lines[6]);
-    mergeIncludeYellow  = parseFloat(lines[7]);
-    addScalebar         = parseFloat(lines[8]);
-    scaleCh             = parseFloat(lines[9]);
-    scaleLength         = parseFloat(lines[10]);
-    zSplitChannels      = parseFloat(lines[11]);
-    zConvertSplitTo8Bit = parseFloat(lines[12]);
-}
-
-function save_review_settings() {
-    settingsPath = getDir("temp") + "IES_review_settings.txt";
-    content = grayCh + "\n" + cyanCh + "\n" + megaCh + "\n" + yellowCh + "\n" +
-              mergeIncludeGray + "\n" + mergeIncludeCyan + "\n" + mergeIncludeMega + "\n" + mergeIncludeYellow + "\n" +
-              addScalebar + "\n" + scaleCh + "\n" + scaleLength + "\n" +
-              zSplitChannels + "\n" + zConvertSplitTo8Bit;
-    File.saveString(content, settingsPath);
-}
-
 launch_suite();
 exit("Done");
 
@@ -180,8 +150,46 @@ function run_z_slice_export() {
     Dialog.addChoice("Mode", newArray("Current Image", "Folder Review"), "Current Image");
     Dialog.addMessage("Current Image: extract one z slice from the active image.");
     Dialog.addMessage("Folder Review: open files one by one, preview, extract current z, then load next.");
+    Dialog.addMessage("");
+    Dialog.addChoice("File type filter (Folder Review)", newArray("All supported", ".lif", ".zvi", ".vsi", ".czi", ".nd2", ".lsm", ".ome.tif", ".ome.tiff", ".tif", ".tiff"), zReviewFileExtension);
+    Dialog.addMessage("");
+    Dialog.addNumber("Gray channel", grayCh);
+    Dialog.addToSameRow();
+    Dialog.addCheckbox("Include gray in merge", mergeIncludeGray);
+    Dialog.addNumber("Cyan channel", cyanCh);
+    Dialog.addToSameRow();
+    Dialog.addCheckbox("Include cyan in merge", mergeIncludeCyan);
+    Dialog.addNumber("Magenta channel", megaCh);
+    Dialog.addToSameRow();
+    Dialog.addCheckbox("Include magenta in merge", mergeIncludeMega);
+    Dialog.addNumber("Yellow channel", yellowCh);
+    Dialog.addToSameRow();
+    Dialog.addCheckbox("Include yellow in merge", mergeIncludeYellow);
+    Dialog.addMessage("");
+    Dialog.addCheckbox("Add scale bar?", addScalebar);
+    Dialog.addToSameRow();
+    Dialog.addNumber("Scale bar channel", scaleCh);
+    Dialog.addToSameRow();
+    Dialog.addNumber("Scale length", scaleLength);
+    Dialog.addCheckbox("Split channels", zSplitChannels);
+    Dialog.addToSameRow();
+    Dialog.addCheckbox("Convert split channels to 8-bit", zConvertSplitTo8Bit);
     Dialog.show();
     zMode = Dialog.getChoice();
+    zReviewFileExtension = Dialog.getChoice();
+    grayCh = Dialog.getNumber();
+    mergeIncludeGray = Dialog.getCheckbox();
+    cyanCh = Dialog.getNumber();
+    mergeIncludeCyan = Dialog.getCheckbox();
+    megaCh = Dialog.getNumber();
+    mergeIncludeMega = Dialog.getCheckbox();
+    yellowCh = Dialog.getNumber();
+    mergeIncludeYellow = Dialog.getCheckbox();
+    addScalebar = Dialog.getCheckbox();
+    scaleCh = Dialog.getNumber();
+    scaleLength = Dialog.getNumber();
+    zSplitChannels = Dialog.getCheckbox();
+    zConvertSplitTo8Bit = Dialog.getCheckbox();
 
     if (zMode == "Folder Review") {
         run_folder_review();
@@ -194,34 +202,8 @@ function run_z_slice_export() {
 
     Dialog.create("Current Image Z-Slice Export");
     Dialog.addNumber("Selected Z position", defaultZ);
-    Dialog.addNumber("Gray channel", grayCh);
-    Dialog.addToSameRow();
-    Dialog.addNumber("Cyan channel", cyanCh);
-    Dialog.addNumber("Magenta channel", megaCh);
-    Dialog.addToSameRow();
-    Dialog.addNumber("Yellow channel", yellowCh);
-    Dialog.addMessage("");
-    Dialog.addCheckbox("Add Scale bar?", addScalebar);
-    Dialog.addToSameRow();
-    Dialog.addNumber("Scale bar channel", scaleCh);
-    Dialog.addToSameRow();
-    Dialog.addNumber("Scale length", scaleLength);
-    Dialog.addCheckbox("Split channels", zSplitChannels);
-    Dialog.addToSameRow();
-    Dialog.addCheckbox("Convert split channels to 8-bit", zConvertSplitTo8Bit);
     Dialog.show();
-
-    z = Dialog.getNumber();
-    defaultZ = z;
-    grayCh = Dialog.getNumber();
-    cyanCh = Dialog.getNumber();
-    megaCh = Dialog.getNumber();
-    yellowCh = Dialog.getNumber();
-    addScalebar = Dialog.getCheckbox();
-    scaleCh = Dialog.getNumber();
-    scaleLength = Dialog.getNumber();
-    zSplitChannels = Dialog.getCheckbox();
-    zConvertSplitTo8Bit = Dialog.getCheckbox();
+    defaultZ = Dialog.getNumber();
 
     imageDir = getInfo("image.directory");
     if (!endsWith(imageDir, File.separator)) imageDir = imageDir + File.separator;
@@ -233,12 +215,6 @@ function run_z_slice_export() {
 function run_folder_review() {
     inputDir = getDirectory("Choose folder for Z-slice review");
     if (inputDir == "") exit("Folder review cancelled.");
-
-    Dialog.create("Folder Review Filter");
-    Dialog.addChoice("File type filter", newArray("All supported", ".lif", ".zvi", ".vsi", ".czi", ".nd2", ".lsm", ".ome.tif", ".ome.tiff", ".tif", ".tiff"), zReviewFileExtension);
-    Dialog.show();
-    zReviewFileExtension = Dialog.getChoice();
-
     run("Bio-Formats Macro Extensions");
     review_folder_files(inputDir);
     showMessage("Folder Review Z-Slice Export", "Finished reviewing all matching files.");
@@ -255,6 +231,7 @@ function review_folder_files(currentDirectory) {
                 run("Bio-Formats Importer", "open=[" + localPath + "] color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT series_" + series);
                 getPixelSize(U, px, py);
                 run("Set Scale...", "distance=" + 1/px + " known=1 unit=" + U);
+                apply_review_preview_colors();
                 imageDir = getInfo("image.directory");
                 if (!endsWith(imageDir, File.separator)) imageDir = imageDir + File.separator;
                 reviewResult = review_current_image(localPath, series);
@@ -269,94 +246,99 @@ function review_folder_files(currentDirectory) {
 
 function review_current_image(reviewPath, reviewSeries) {
     getDimensions(width, height, channels, slices, frames);
-    load_review_settings();
     apply_review_preview_colors();
+
+    setTool("hand");
     Stack.getPosition(currentChannel, currentSlice, currentFrame);
     if (currentSlice < 1) currentSlice = 1;
 
-    setTool("hand");
-    while (true) {
-        setTool("hand");
-        waitForUser("Review Current Image", "File: " + File.getName(reviewPath) + "\nSeries: " + reviewSeries + "\n\nUse the image window to choose the channel and z position, then press OK.");
-        Stack.getPosition(currentChannel, currentSlice, currentFrame);
-        if (currentSlice < 1) currentSlice = 1;
-        previewChannel = currentChannel;
-        previewSlice = currentSlice;
+    waitForUser("Review: " + File.getName(reviewPath),
+        "Series: " + reviewSeries + "   Channel: " + currentChannel + "   Z: " + currentSlice +
+        "\nSettings:  Gray=" + grayCh + "  Cyan=" + cyanCh + "  Magenta=" + megaCh + "  Yellow=" + yellowCh +
+        "\n\nNavigate to the desired Z slice, then press OK to export.");
 
-        Dialog.create("Review Action");
-        Dialog.addMessage("File: " + File.getName(reviewPath));
-        Dialog.addMessage("Series: " + reviewSeries);
-        Dialog.addMessage("Current channel: " + currentChannel + " | Current z: " + currentSlice);
-        Dialog.addMessage("");
-        Dialog.addNumber("Preview channel", previewChannel);
-        Dialog.addToSameRow();
-        Dialog.addNumber("Preview z", previewSlice);
-        Dialog.addMessage("");
-        Dialog.addNumber("Gray channel", grayCh);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Include gray in merge", mergeIncludeGray);
-        Dialog.addNumber("Cyan channel", cyanCh);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Include cyan in merge", mergeIncludeCyan);
-        Dialog.addNumber("Magenta channel", megaCh);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Include magenta in merge", mergeIncludeMega);
-        Dialog.addNumber("Yellow channel", yellowCh);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Include yellow in merge", mergeIncludeYellow);
-        Dialog.addMessage("");
-        Dialog.addCheckbox("Add Scale bar?", addScalebar);
-        Dialog.addToSameRow();
-        Dialog.addNumber("Scale bar channel", scaleCh);
-        Dialog.addToSameRow();
-        Dialog.addNumber("Scale length", scaleLength);
-        Dialog.addCheckbox("Split channels", zSplitChannels);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Convert split channels to 8-bit", zConvertSplitTo8Bit);
-        Dialog.addMessage("");
-        Dialog.addChoice("Action", newArray("Update preview and continue", "Preview export appearance", "Extract current Z and next", "Continue reviewing", "Next file", "Exit"), "Extract current Z and next");
-        Dialog.show();
+    Stack.getPosition(currentChannel, currentSlice, currentFrame);
+    if (currentSlice < 1) currentSlice = 1;
+    extract_current_review_slice(reviewPath, reviewSeries);
+    return "next";
+}
 
-        previewChannel = Dialog.getNumber();
-        previewSlice = Dialog.getNumber();
-        grayCh = Dialog.getNumber();
-        cyanCh = Dialog.getNumber();
-        megaCh = Dialog.getNumber();
-        yellowCh = Dialog.getNumber();
-        scaleCh = Dialog.getNumber();
-        scaleLength = Dialog.getNumber();
-        mergeIncludeGray = Dialog.getCheckbox();
-        mergeIncludeCyan = Dialog.getCheckbox();
-        mergeIncludeMega = Dialog.getCheckbox();
-        mergeIncludeYellow = Dialog.getCheckbox();
-        addScalebar = Dialog.getCheckbox();
-        zSplitChannels = Dialog.getCheckbox();
-        zConvertSplitTo8Bit = Dialog.getCheckbox();
-        reviewAction = Dialog.getChoice();
-        save_review_settings();
-
-        if (reviewAction == "Update preview and continue") {
-            apply_review_position_and_colors(previewChannel, previewSlice);
-            continue;
-        }
-        if (reviewAction == "Preview export appearance") {
-            apply_review_position_and_colors(previewChannel, previewSlice);
-            preview_current_review_export();
-            continue;
-        }
-        if (reviewAction == "Extract current Z and next") {
-            defaultPreviewChannel = previewChannel;
-            defaultZ = previewSlice;
-            apply_review_position_and_colors(previewChannel, previewSlice);
+        if (reviewAction == "Export current Z") {
             extract_current_review_slice(reviewPath, reviewSeries);
             return "next";
         }
-        if (reviewAction == "Continue reviewing") {
+
+        if (reviewAction == "Change settings") {
+            Dialog.create("Channel Settings");
+            Dialog.addNumber("Gray channel", grayCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include gray in merge", mergeIncludeGray);
+            Dialog.addNumber("Cyan channel", cyanCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include cyan in merge", mergeIncludeCyan);
+            Dialog.addNumber("Magenta channel", megaCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include magenta in merge", mergeIncludeMega);
+            Dialog.addNumber("Yellow channel", yellowCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include yellow in merge", mergeIncludeYellow);
+            Dialog.show();
+            grayCh = Dialog.getNumber();
+            mergeIncludeGray = Dialog.getCheckbox();
+            cyanCh = Dialog.getNumber();
+            mergeIncludeCyan = Dialog.getCheckbox();
+            megaCh = Dialog.getNumber();
+            mergeIncludeMega = Dialog.getCheckbox();
+            yellowCh = Dialog.getNumber();
+            mergeIncludeYellow = Dialog.getCheckbox();
+            apply_review_preview_colors();
             continue;
         }
-        if (reviewAction == "Next file") {
+
+        if (reviewAction == "Skip to next file") {
             return "next";
         }
+
+        return "exit";
+    }
+}
+
+        if (reviewAction == "Export current Z") {
+            extract_current_review_slice(reviewPath, reviewSeries);
+            return "next";
+        }
+
+        if (reviewAction == "Change settings") {
+            Dialog.create("Channel Settings");
+            Dialog.addNumber("Gray channel", grayCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include gray in merge", mergeIncludeGray);
+            Dialog.addNumber("Cyan channel", cyanCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include cyan in merge", mergeIncludeCyan);
+            Dialog.addNumber("Magenta channel", megaCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include magenta in merge", mergeIncludeMega);
+            Dialog.addNumber("Yellow channel", yellowCh);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Include yellow in merge", mergeIncludeYellow);
+            Dialog.show();
+            grayCh = Dialog.getNumber();
+            mergeIncludeGray = Dialog.getCheckbox();
+            cyanCh = Dialog.getNumber();
+            mergeIncludeCyan = Dialog.getCheckbox();
+            megaCh = Dialog.getNumber();
+            mergeIncludeMega = Dialog.getCheckbox();
+            yellowCh = Dialog.getNumber();
+            mergeIncludeYellow = Dialog.getCheckbox();
+            apply_review_preview_colors();
+            continue;
+        }
+
+        if (reviewAction == "Skip to next file") {
+            return "next";
+        }
+
         return "exit";
     }
 }
