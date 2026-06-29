@@ -8,7 +8,6 @@ workflow = "Multichannel Image";
 doBatch = true;
 addScalebar = false;
 transform_to_8bit = true;
-autoWhiteBalanceSingle = false;
 singleChannelExportGray = false;
 outAsIn = true;
 grayCh = 1;
@@ -36,11 +35,11 @@ exit("Done");
 
 function launch_suite() {
     Dialog.create("Image Exporting Suite");
-    Dialog.addMessage("Choose a workflow.");
+    Dialog.addMessage("Choose workflow.");
     Dialog.addChoice("Workflow", newArray("RGB Image", "Multichannel Image", "Z-Slice Export"), workflow);
-    Dialog.addMessage("RGB Image: export RGB/composite images with optional grayscale conversion.");
+    Dialog.addMessage("RGB Image: export RGB/composite images.");
     Dialog.addMessage("Multichannel Image: recolor, split, merge, and export multichannel files.");
-    Dialog.addMessage("Z-Slice Export: extract one z slice from the current image or review a folder one file at a time.");
+    Dialog.addMessage("Z-Slice Export: extract one z slice from current image or review a folder.");
     Dialog.show();
     workflow = Dialog.getChoice();
 
@@ -60,32 +59,33 @@ function run_batch_export(workflow) {
         Dialog.addDirectory("Input Directory:", defaultDir);
         Dialog.addCheckbox("Output to the same folder as input?", outAsIn);
         Dialog.addToSameRow();
-        Dialog.addMessage("(Otherwise choose output in next dialog)");
+        Dialog.addMessage("(Or choose output next)");
         Dialog.addMessage("");
         Dialog.addString("File Suffix:", ".lif");
-        Dialog.addMessage("");
-        Dialog.addCheckbox("Change to 8 bit image", transform_to_8bit);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Add Scale bar?", addScalebar);
-        Dialog.addToSameRow();
-        Dialog.addCheckbox("Batch Silent Mode?", doBatch);
+        if (workflow == "RGB Image") {
+            Dialog.addCheckbox("Export grayscale", singleChannelExportGray);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Add Scale bar?", addScalebar);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Batch Silent Mode?", doBatch);
+        } else {
+            Dialog.addMessage("");
+            Dialog.addCheckbox("Add Scale bar?", addScalebar);
+            Dialog.addToSameRow();
+            Dialog.addCheckbox("Batch Silent Mode?", doBatch);
+        }
         Dialog.show();
 
         inputDir = Dialog.getString() + File.separator;
         outAsIn = Dialog.getCheckbox();
         fileExtension = Dialog.getString();
-        transform_to_8bit = Dialog.getCheckbox();
+        if (workflow == "RGB Image") {
+            singleChannelExportGray = Dialog.getCheckbox();
+        }
         addScalebar = Dialog.getCheckbox();
         doBatch = Dialog.getCheckbox();
 
         if (workflow == "RGB Image") {
-            Dialog.create("RGB Image Settings");
-            Dialog.addCheckbox("Auto white balance", autoWhiteBalanceSingle);
-            Dialog.addMessage("");
-            Dialog.addCheckbox("Export grayscale final image", singleChannelExportGray);
-            Dialog.show();
-            autoWhiteBalanceSingle = Dialog.getCheckbox();
-            singleChannelExportGray = Dialog.getCheckbox();
             channelSplit = false;
         } else {
             Dialog.create("Multichannel Image Settings");
@@ -96,12 +96,15 @@ function run_batch_export(workflow) {
             Dialog.addToSameRow();
             Dialog.addNumber("Yellow channel", yellowCh);
             Dialog.addMessage("");
+            Dialog.addCheckbox("Change to 8 bit image", transform_to_8bit);
+            Dialog.addToSameRow();
             Dialog.addCheckbox("Split Channels?", channelSplit);
             Dialog.show();
             grayCh = Dialog.getNumber();
             cyanCh = Dialog.getNumber();
             megaCh = Dialog.getNumber();
             yellowCh = Dialog.getNumber();
+            transform_to_8bit = Dialog.getCheckbox();
             channelSplit = Dialog.getCheckbox();
         }
 
@@ -505,9 +508,6 @@ function process_rgb_image_output(outputBaseName) {
         save_rgb_image_as_grayscale(outputBaseName);
         return;
     }
-    if (autoWhiteBalanceSingle) {
-        auto_white_balance_rgb();
-    }
     tempRgbSource = outputBaseName + "__rgb_source__.tif";
     saveAs("Tiff", tempRgbSource);
     save_rgb_image_as_rgb(outputBaseName, tempRgbSource);
@@ -520,7 +520,6 @@ function save_rgb_image_as_grayscale(outputBaseName) {
     run("RGB Color");
     if (bitDepth() != 8) run("8-bit");
     run("Grays");
-    if (autoWhiteBalanceSingle) auto_white_balance_single();
     saveAs("Tiff", outputBaseName + ".tif");
     close();
 }
@@ -681,14 +680,6 @@ function array_contains(values, target) {
         if (values[i] == target) return true;
     }
     return false;
-}
-
-function auto_white_balance_single() {
-    run("Enhance Contrast", "saturated=0.35 normalize");
-}
-
-function auto_white_balance_rgb() {
-    run("Enhance Contrast", "saturated=0.35 normalize");
 }
 
 function sanitize_output_name(name, ext) {
