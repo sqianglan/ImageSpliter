@@ -714,7 +714,8 @@ function sanitize_output_name(name, ext) {
 
 function timeStamp() {
     getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
-    return toString(year) + "-" + twoDigit(month) + "-" + twoDigit(dayOfMonth);
+    monthOneBased = month + 1;
+    return toString(year) + "-" + twoDigit(monthOneBased) + "-" + twoDigit(dayOfMonth);
 }
 
 function twoDigit(n) {
