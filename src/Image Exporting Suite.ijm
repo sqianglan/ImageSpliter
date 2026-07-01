@@ -195,16 +195,18 @@ function run_z_slice_export() {
         exit("Current Image mode requires an open image.");
     }
 
-    Dialog.create("Current Image Z-Slice Export");
-    Dialog.addNumber("Selected Z position", defaultZ);
-    Dialog.show();
-    defaultZ = Dialog.getNumber();
-
     imageDir = getInfo("image.directory");
+    if (imageDir == "") {
+        defaultOutputDir = getDirectory("default");
+        if (defaultOutputDir == "") defaultOutputDir = getDirectory("home");
+        Dialog.create("Current image Z export");
+        Dialog.addDirectory("Output directory:", defaultOutputDir);
+        Dialog.show();
+        imageDir = Dialog.getString();
+        if (imageDir == "") exit("Current image Z export cancelled.");
+    }
     if (!endsWith(imageDir, File.separator)) imageDir = imageDir + File.separator;
-    name = getTitle();
-    currentImageName = sanitize_output_name(name, "");
-    export_current_slice_outputs(imageDir + currentImageName, z);
+    review_current_image(imageDir + getTitle(), 1);
 }
 
 function run_folder_review() {
@@ -244,6 +246,7 @@ function review_current_image(reviewPath, reviewSeries) {
     apply_review_preview_colors();
 
     setTool("hand");
+    run("Brightness/Contrast...");
     Stack.getPosition(currentChannel, currentSlice, currentFrame);
     if (currentSlice < 1) currentSlice = 1;
 
